@@ -1,13 +1,14 @@
 [package]
 name = "klip"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-description = "Clipboard history with a keyboard-first picker. Text only, in memory only, no network."
+description = "Clipboard history (text and images) plus a file and app finder, in one keyboard-first window. In memory only, no network."
 license = "MIT"
 rust-version = "1.89"
 
 [dependencies]
-arboard = { version = "3", default-features = false, features = ["wayland-data-control"] }
+arboard = { version = "3", default-features = false, features = ["image-data", "wayland-data-control"] }
+png = "0.17"
 clipboard-master = "4"
 global-hotkey = "0.7"
 tao = "0.30"
