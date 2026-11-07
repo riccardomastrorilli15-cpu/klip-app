@@ -1,0 +1,22 @@
+[package]
+name = "klip"
+version = "0.2.0"
+edition = "2021"
+description = "Clipboard history with a keyboard-first picker. Text only, in memory only, no network."
+license = "MIT"
+rust-version = "1.89"
+
+[dependencies]
+arboard = { version = "3", default-features = false, features = ["wayland-data-control"] }
+clipboard-master = "4"
+global-hotkey = "0.7"
+tao = "0.30"
+tray-icon = "0.19"
+eframe = { version = "0.32", default-features = false, features = ["glow", "default_fonts", "x11", "wayland"] }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
