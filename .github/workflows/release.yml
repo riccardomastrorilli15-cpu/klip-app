@@ -1,0 +1,75 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - name: build universal .app
+        run: |
+          cargo build --locked --release --target aarch64-apple-darwin
+          cargo build --locked --release --target x86_64-apple-darwin
+          mkdir -p dist klip.app/Contents/MacOS
+          lipo -create -output klip.app/Contents/MacOS/klip \
+            target/aarch64-apple-darwin/release/klip \
+            target/x86_64-apple-darwin/release/klip
+          sed "s/@VERSION@/${GITHUB_REF_NAME#v}/g" packaging/Info.plist > klip.app/Contents/Info.plist
+          codesign --force --deep -s - klip.app
+          ditto -c -k --keepParent klip.app dist/klip-macos-universal.zip
+      - uses: actions/upload-artifact@v4
+        with: { name: macos, path: dist/* }
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked --release
+      - run: |
+          New-Item -ItemType Directory dist | Out-Null
+          Compress-Archive -Path target\release\klip.exe -DestinationPath dist\klip-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: dist/* }
+
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev libxdo-dev
+      - run: |
+          cargo build --locked --release
+          mkdir -p dist
+          tar -czf dist/klip-linux-x64.tar.gz -C target/release klip
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: dist/* }
+
+  publish:
+    needs: [macos, windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - name: checksums
+        run: cd dist && sha256sum * > SHA256SUMS.txt
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "dist/klip-*"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
